@@ -13,12 +13,16 @@ async function authPlugin(logger, config) {
       const ticket = req.query.ticket;
 
       if (!ticket) {
-        return { type: 'redirect', url: `${config.server}/login?service=${req.session.service}` };
+        logger.trace('No ticket in the URL. Redirecting');
+        const url = `${config.server}/login?service=${req.session.service}`;
+        logger.debug('Redirect URL: ' + url);
+        return { type: 'redirect', url };
       } else {
-        logger.info('Got CAS ticket. Requesting validation.');
+        logger.trace('Got CAS ticket. Requesting validation.');
+        logger.debug('Service: ' + req.session.service);
         const response = await axios.get(`${config.server}/serviceValidate`, {
           params: {
-            ticket: req.query.ticket,
+            ticket,
             service: req.session.service
           }
         });
@@ -36,8 +40,10 @@ async function authPlugin(logger, config) {
         if (uid) {
           delete req.session.service;
           await saveSession(req);
+          logger.info('Authentication successful for user ' + uid);
           return { type: 'success', uid };
         } else {
+          logger.warn('Authorization failed: could not find UID');
           return { type: 'unauthorized' };
         }
       }
